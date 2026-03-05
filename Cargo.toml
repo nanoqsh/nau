@@ -1,0 +1,23 @@
+[workspace]
+resolver = "3"
+members = ["nau", "examples/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["nanoqsh"]
+keywords = ["web"]
+documentation = "https://docs.rs/nau"
+repository = "https://github.com/nanoqsh/nau"
+rust-version = "1.93"
+
+[workspace.dependencies]
+nau.path = "nau"
+async-channel = "2.5.0"
+gloo = { version = "0.11.0", default-features = false }
+futures-concurrency = "7.7.1"
+futures-lite = { version = "2.6.1", default-features = false }
+wasm-bindgen = "0.2.114"
+wasm-bindgen-futures = "0.4.64"
+web-sys = "0.3.91"

@@ -1,0 +1,15 @@
+[package]
+name = "hello"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nau.workspace = true
+gloo = { workspace = true, features = ["console"] }
+futures-concurrency.workspace = true
+futures-lite.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true

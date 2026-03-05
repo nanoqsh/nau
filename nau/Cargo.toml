@@ -1,0 +1,22 @@
+[package]
+name = "nau"
+description = "Experimental frontend framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+documentation.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-channel.workspace = true
+futures-concurrency.workspace = true
+futures-lite.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+
+[dependencies.web-sys]
+workspace = true
+features = ["Document", "Element", "HtmlButtonElement", "Node", "Window"]
