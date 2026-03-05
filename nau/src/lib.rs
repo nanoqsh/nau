@@ -14,13 +14,12 @@ where
     C: Component,
 {
     let document = web_sys::window().and_then(|w| w.document()).unwrap_throw();
-    let root = document.get_element_by_id(id).unwrap_throw();
+    let Some(root) = document.get_element_by_id(id) else {
+        panic!("html element with id {id} not found");
+    };
+
     let ui = Ui { document, root };
     comp.run_component(ui).await;
-}
-
-pub trait Html {
-    fn append_child(&self, ui: &Ui);
 }
 
 struct OnEvent<A> {
@@ -78,14 +77,6 @@ impl<A> Drop for Button<A> {
     }
 }
 
-impl<A> Html for Button<A> {
-    fn append_child(&self, ui: &Ui) {
-        _ = ui
-            .root
-            .append_child(self.html.as_ref().expect("html element"));
-    }
-}
-
 impl<A> IntoStream for Button<A>
 where
     A: 'static,
@@ -123,13 +114,6 @@ impl Ui {
             onclick: None,
             action: PhantomData,
         }
-    }
-
-    pub fn push<H>(&self, html: &H)
-    where
-        H: Html,
-    {
-        html.append_child(self);
     }
 }
 
