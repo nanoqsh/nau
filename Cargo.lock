@@ -36,6 +36,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "nau",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -163,18 +173,6 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "hello"
-version = "0.1.0"
-dependencies = [
- "futures-concurrency",
- "futures-lite",
- "gloo",
- "nau",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]

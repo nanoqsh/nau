@@ -19,4 +19,12 @@ wasm-bindgen-futures.workspace = true
 
 [dependencies.web-sys]
 workspace = true
-features = ["Document", "Element", "HtmlButtonElement", "Node", "Window"]
+features = [
+    "Document",
+    "DomTokenList",
+    "Element",
+    "HtmlButtonElement",
+    "HtmlInputElement",
+    "Node",
+    "Window",
+]

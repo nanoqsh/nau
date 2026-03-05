@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello</title>
+</head>
+
+<body>
+    <style>
+        body {
+            background-color: #1a1a2e;
+            margin: 0;
+            min-height: 100vh;
+            font-size: 16px;
+        }
+
+        .button {
+            background-color: #e94560;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            margin: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .button:hover {
+            background-color: #c73652;
+        }
+
+        .input {
+            background-color: #e2e2e2;
+            color: #2e2929;
+            border: none;
+            border-radius: 8px;
+            margin: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+
+        }
+    </style>
+    <script type="module">
+        import init from './counter.js';
+        await init();
+    </script>
+    <div id="root"></div>
+</body>
+
+</html>
