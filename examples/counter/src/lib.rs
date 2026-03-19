@@ -1,5 +1,4 @@
 use {
-    futures_lite::stream,
     gloo::timers::future::sleep,
     nau::{Html, prelude::*},
     std::time::Duration,
@@ -54,14 +53,14 @@ async fn counter(ui: Ui) {
     };
 
     let mut count = 0;
-    stream::stop_after_future((inc, dec).merge(), fadeout)
-        .for_each(|event| {
-            match event {
-                Event::Increment => count += 1,
-                Event::Decrement => count -= 1,
-            }
+    let input = (inc, dec).merge().for_each(|event| {
+        match event {
+            Event::Increment => count += 1,
+            Event::Decrement => count -= 1,
+        }
 
-            (&text).text(count.to_string());
-        })
-        .await;
+        (&text).text(count.to_string());
+    });
+
+    (input, fadeout).race().await;
 }
