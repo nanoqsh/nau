@@ -17,7 +17,7 @@ async fn spawner(ui: Ui) {
         make.event().await;
 
         let parent = ui.make_div().class("counter");
-        ui.make(counter.with_parent(parent));
+        ui.make(counter.with_parent(parent)).detach();
     }
 }
 

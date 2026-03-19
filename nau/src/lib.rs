@@ -2,10 +2,16 @@
 
 use {
     async_channel::{Receiver, Sender},
-    async_executor::LocalExecutor,
+    async_executor::{LocalExecutor, Task},
     futures_concurrency::stream::IntoStream,
     futures_lite::{Stream, stream},
-    std::{future, marker::PhantomData, pin::Pin, rc::Rc},
+    std::{
+        future,
+        marker::PhantomData,
+        pin::Pin,
+        rc::Rc,
+        task::{Context, Poll},
+    },
     wasm_bindgen::prelude::*,
     web_sys::{Document, Element, HtmlButtonElement, HtmlDivElement, HtmlInputElement},
 };
@@ -73,26 +79,6 @@ pub trait Html {
         let text = text.as_ref();
         let value = if text.is_empty() { None } else { Some(text) };
         self.get_element().set_text_content(value);
-        self
-    }
-
-    fn child<H>(self, html: &H) -> Self
-    where
-        H: Html,
-        Self: Sized,
-    {
-        _ = self.get_element().append_child(html.get_element());
-        self
-    }
-
-    fn children(self, children: &[&dyn Html]) -> Self
-    where
-        Self: Sized,
-    {
-        for child in children.as_ref() {
-            _ = self.get_element().append_child(child.get_element());
-        }
-
         self
     }
 }
@@ -273,55 +259,46 @@ pub struct Ui {
 }
 
 impl Ui {
+    fn create_element<H>(&self, tag: &str) -> H
+    where
+        H: JsCast,
+    {
+        self.document
+            .create_element(tag)
+            .unwrap_throw()
+            .dyn_into()
+            .unwrap_throw()
+    }
+
     pub fn make_button<S, A>(&self, text: S) -> Button<A>
     where
         S: AsRef<str>,
     {
-        let html = self
-            .document
-            .create_element("button")
-            .unwrap_throw()
-            .dyn_into::<HtmlButtonElement>()
-            .unwrap_throw();
-
+        let html: HtmlButtonElement = self.create_element("button");
         let text = text.as_ref();
         html.set_text_content(if text.is_empty() { None } else { Some(text) });
-
         _ = self.root.append_child(&html);
         Button::new(html)
     }
 
-    pub fn make_input<S, A>(&self, placeholder: &str) -> Input<A>
+    pub fn make_input<S, A>(&self, placeholder: S) -> Input<A>
     where
         S: AsRef<str>,
     {
-        let html = self
-            .document
-            .create_element("input")
-            .unwrap_throw()
-            .dyn_into::<HtmlInputElement>()
-            .unwrap_throw();
-
+        let html: HtmlInputElement = self.create_element("input");
         html.set_type("text");
         html.set_placeholder(placeholder.as_ref());
-
         _ = self.root.append_child(&html);
         Input::new(html)
     }
 
     pub fn make_div(&self) -> Div {
-        let html = self
-            .document
-            .create_element("div")
-            .unwrap_throw()
-            .dyn_into::<HtmlDivElement>()
-            .unwrap_throw();
-
+        let html: HtmlDivElement = self.create_element("div");
         _ = self.root.append_child(&html);
         Div::new(html)
     }
 
-    pub fn make<C>(&self, comp: C) -> ComponentHandle
+    pub fn make<C>(&self, comp: C) -> ComponentHandle<C::Output>
     where
         C: Component + 'static,
     {
@@ -331,8 +308,8 @@ impl Ui {
             ex: self.ex.clone(),
         };
 
-        self.ex.spawn(comp.run_component(ui)).detach();
-        ComponentHandle {}
+        let task = self.ex.spawn(comp.run_component(ui));
+        ComponentHandle { task }
     }
 }
 
@@ -342,24 +319,42 @@ impl Html for Ui {
     }
 }
 
-pub struct ComponentHandle {
-    // TODO
+pub struct ComponentHandle<R> {
+    task: Task<R>,
+}
+
+impl<R> ComponentHandle<R> {
+    pub fn detach(self) {
+        self.task.detach();
+    }
+}
+
+impl<R> Future for ComponentHandle<R> {
+    type Output = R;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.task).poll(cx)
+    }
 }
 
 pub trait Component: Sized {
-    async fn run_component(self, ui: Ui);
+    type Output;
+
+    async fn run_component(self, ui: Ui) -> Self::Output;
 
     fn with_parent<H>(self, parent: H) -> WithParent<H, Self> {
         WithParent { parent, comp: self }
     }
 }
 
-impl<C> Component for C
+impl<C, R> Component for C
 where
-    C: AsyncFnOnce(Ui),
+    C: AsyncFnOnce(Ui) -> R,
 {
-    async fn run_component(self, ui: Ui) {
-        self(ui).await;
+    type Output = R;
+
+    async fn run_component(self, ui: Ui) -> Self::Output {
+        self(ui).await
     }
 }
 
@@ -373,8 +368,10 @@ where
     H: Html,
     C: Component,
 {
-    async fn run_component(self, mut ui: Ui) {
+    type Output = C::Output;
+
+    async fn run_component(self, mut ui: Ui) -> Self::Output {
         ui.root = self.parent.get_element().clone();
-        self.comp.run_component(ui).await;
+        self.comp.run_component(ui).await
     }
 }
