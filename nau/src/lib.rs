@@ -273,9 +273,9 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn make_button<'text, S, A>(&self, text: S) -> Button<A>
+    pub fn make_button<S, A>(&self, text: S) -> Button<A>
     where
-        S: Into<Option<&'text str>>,
+        S: AsRef<str>,
     {
         let html = self
             .document
@@ -284,12 +284,17 @@ impl Ui {
             .dyn_into::<HtmlButtonElement>()
             .unwrap_throw();
 
-        html.set_text_content(text.into());
+        let text = text.as_ref();
+        html.set_text_content(if text.is_empty() { None } else { Some(text) });
+
         _ = self.root.append_child(&html);
         Button::new(html)
     }
 
-    pub fn make_input<A>(&self, placeholder: &str) -> Input<A> {
+    pub fn make_input<S, A>(&self, placeholder: &str) -> Input<A>
+    where
+        S: AsRef<str>,
+    {
         let html = self
             .document
             .create_element("input")
@@ -298,7 +303,8 @@ impl Ui {
             .unwrap_throw();
 
         html.set_type("text");
-        html.set_placeholder(placeholder);
+        html.set_placeholder(placeholder.as_ref());
+
         _ = self.root.append_child(&html);
         Input::new(html)
     }
