@@ -1,6 +1,8 @@
 use {
     futures_lite::stream,
+    gloo::timers::future::sleep,
     nau::{Html, prelude::*},
+    std::time::Duration,
     wasm_bindgen::prelude::*,
 };
 
@@ -38,10 +40,21 @@ async fn counter(ui: Ui) {
         .class("button")
         .onclick(|| Event::Decrement);
 
-    let _parent = ui.make_div().children(&[&close, &inc, &text, &dec]);
+    let parent = ui
+        .make_div()
+        .class("counter")
+        .children(&[&close, &inc, &text, &dec]);
+
+    let fadeout = async {
+        close.event().await;
+        (&parent).class("hidden");
+
+        // sleep before exit to play animation
+        sleep(Duration::from_millis(500)).await;
+    };
 
     let mut count = 0;
-    stream::stop_after_future((inc, dec).merge(), close.event())
+    stream::stop_after_future((inc, dec).merge(), fadeout)
         .for_each(|event| {
             match event {
                 Event::Increment => count += 1,

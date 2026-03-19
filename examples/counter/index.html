@@ -42,6 +42,15 @@
             margin: 20px;
             padding: 10px 20px;
         }
+
+        .counter {
+            opacity: 1;
+            transition: opacity 0.5s ease-in;
+        }
+
+        .counter.hidden {
+            opacity: 0;
+        }
     </style>
     <script type="module">
         import init from './counter.js';
