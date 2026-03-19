@@ -349,8 +349,8 @@ pub struct ComponentHandle {
 pub trait Component: Sized {
     async fn run_component(self, ui: Ui);
 
-    fn with_root<H>(self, root: H) -> WithRoot<H, Self> {
-        WithRoot { root, comp: self }
+    fn with_parent<H>(self, parent: H) -> WithParent<H, Self> {
+        WithParent { parent, comp: self }
     }
 }
 
@@ -363,18 +363,18 @@ where
     }
 }
 
-pub struct WithRoot<H, C> {
-    root: H,
+pub struct WithParent<H, C> {
+    parent: H,
     comp: C,
 }
 
-impl<H, C> Component for WithRoot<H, C>
+impl<H, C> Component for WithParent<H, C>
 where
     H: Html,
     C: Component,
 {
     async fn run_component(self, mut ui: Ui) {
-        ui.root = self.root.get_element().clone();
+        ui.root = self.parent.get_element().clone();
         self.comp.run_component(ui).await;
     }
 }

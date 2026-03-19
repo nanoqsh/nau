@@ -1,6 +1,6 @@
 use {
     gloo::timers::future::sleep,
-    nau::{Html, prelude::*},
+    nau::{Component, Html, prelude::*},
     std::time::Duration,
     wasm_bindgen::prelude::*,
 };
@@ -17,7 +17,7 @@ async fn spawner(ui: Ui) {
         make.event().await;
 
         let parent = ui.make_div().class("counter");
-        ui.make(counter.with_root(parent));
+        ui.make(counter.with_parent(parent));
     }
 }
 
