@@ -21,23 +21,9 @@ async fn spawner(ui: Ui) {
 
 async fn counter(ui: Ui) {
     let close = ui.make_button("Close").class("button").onclick(|| ());
-
-    enum Event {
-        Increment,
-        Decrement,
-    }
-
-    let inc = ui
-        .make_button("+1")
-        .class("button")
-        .onclick(|| Event::Increment);
-
+    let inc = ui.make_button("+1").class("button").onclick(|| 1);
     let text = ui.make_div().class("text").text("0");
-
-    let dec = ui
-        .make_button("-1")
-        .class("button")
-        .onclick(|| Event::Decrement);
+    let dec = ui.make_button("-1").class("button").onclick(|| -1);
 
     let parent = ui
         .make_div()
@@ -46,19 +32,15 @@ async fn counter(ui: Ui) {
 
     let fadeout = async {
         close.event().await;
-        (&parent).class("hidden");
+        (&parent).class("hide");
 
         // sleep before exit to play animation
         sleep(Duration::from_millis(500)).await;
     };
 
     let mut count = 0;
-    let input = (inc, dec).merge().for_each(|event| {
-        match event {
-            Event::Increment => count += 1,
-            Event::Decrement => count -= 1,
-        }
-
+    let input = (inc, dec).merge().for_each(|d| {
+        count += d;
         (&text).text(count.to_string());
     });
 
