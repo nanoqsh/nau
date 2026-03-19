@@ -321,17 +321,13 @@ impl Ui {
         Div::new(html)
     }
 
-    pub fn make<C, H>(&self, root: &H, comp: C) -> ComponentHandle
+    pub fn make<C>(&self, comp: C) -> ComponentHandle
     where
         C: Component + 'static,
-        H: Html,
     {
-        let html = root.get_element().clone();
-        _ = self.root.append_child(&html);
-
         let ui = Self {
             document: self.document.clone(),
-            root: html,
+            root: self.root.clone(),
             ex: self.ex.clone(),
         };
 
@@ -352,6 +348,10 @@ pub struct ComponentHandle {
 
 pub trait Component: Sized {
     async fn run_component(self, ui: Ui);
+
+    fn with_root<H>(self, root: H) -> WithRoot<H, Self> {
+        WithRoot { root, comp: self }
+    }
 }
 
 impl<C> Component for C
@@ -360,5 +360,21 @@ where
 {
     async fn run_component(self, ui: Ui) {
         self(ui).await;
+    }
+}
+
+pub struct WithRoot<H, C> {
+    root: H,
+    comp: C,
+}
+
+impl<H, C> Component for WithRoot<H, C>
+where
+    H: Html,
+    C: Component,
+{
+    async fn run_component(self, mut ui: Ui) {
+        ui.root = self.root.get_element().clone();
+        self.comp.run_component(ui).await;
     }
 }

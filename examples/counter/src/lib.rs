@@ -15,7 +15,9 @@ async fn spawner(ui: Ui) {
 
     loop {
         make.event().await;
-        ui.make(&ui, counter);
+
+        let parent = ui.make_div().class("counter");
+        ui.make(counter.with_root(parent));
     }
 }
 
@@ -25,14 +27,9 @@ async fn counter(ui: Ui) {
     let text = ui.make_div().class("text").text("0");
     let dec = ui.make_button("-1").class("button").onclick(|| -1);
 
-    let parent = ui
-        .make_div()
-        .class("counter")
-        .children(&[&close, &inc, &text, &dec]);
-
     let fadeout = async {
         close.event().await;
-        (&parent).class("hide");
+        (&ui).class("hide");
 
         // sleep before exit to play animation
         sleep(Duration::from_millis(500)).await;
