@@ -8,6 +8,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 nau.workspace = true
-gloo = { workspace = true, features = ["console"] }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true

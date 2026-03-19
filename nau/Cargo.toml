@@ -12,6 +12,7 @@ rust-version.workspace = true
 
 [dependencies]
 async-channel.workspace = true
+async-executor = "1.14.0"
 futures-concurrency.workspace = true
 futures-lite.workspace = true
 wasm-bindgen.workspace = true
@@ -24,7 +25,9 @@ features = [
     "DomTokenList",
     "Element",
     "HtmlButtonElement",
+    "HtmlDivElement",
     "HtmlInputElement",
     "Node",
+    "Text",
     "Window",
 ]

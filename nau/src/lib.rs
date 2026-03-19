@@ -2,18 +2,19 @@
 
 use {
     async_channel::{Receiver, Sender},
+    async_executor::LocalExecutor,
     futures_concurrency::stream::IntoStream,
     futures_lite::{Stream, stream},
-    std::{future, marker::PhantomData, pin::Pin},
+    std::{future, marker::PhantomData, pin::Pin, rc::Rc},
     wasm_bindgen::prelude::*,
-    web_sys::{Document, Element, HtmlButtonElement, HtmlInputElement},
+    web_sys::{Document, Element, HtmlButtonElement, HtmlDivElement, HtmlInputElement},
 };
 
 pub mod prelude {
     pub use {
         crate::{Component as _, Html as _, Ui},
-        futures_concurrency::prelude::*,
-        futures_lite::prelude::*,
+        futures_concurrency::{self, prelude::*},
+        futures_lite::{self, prelude::*},
     };
 }
 
@@ -26,8 +27,9 @@ where
         panic!("html element with id {id} not found");
     };
 
-    let ui = Ui { document, root };
-    comp.run_component(ui).await;
+    let ex = Rc::default();
+    let ui = Ui { document, root, ex };
+    ui.ex.clone().run(comp.run_component(ui)).await;
 }
 
 struct RemoveOnDrop<H>(H)
@@ -52,11 +54,45 @@ where
     }
 }
 
-pub trait Html: Sized {
+pub trait Html {
     fn get_element(&self) -> &Element;
 
-    fn class(self, class: &str) -> Self {
+    fn class(self, class: &str) -> Self
+    where
+        Self: Sized,
+    {
         _ = self.get_element().class_list().add_1(class);
+        self
+    }
+
+    fn text<S>(self, text: S) -> Self
+    where
+        S: AsRef<str>,
+        Self: Sized,
+    {
+        let text = text.as_ref();
+        let value = if text.is_empty() { None } else { Some(text) };
+        self.get_element().set_text_content(value);
+        self
+    }
+
+    fn child<H>(self, html: &H) -> Self
+    where
+        H: Html,
+        Self: Sized,
+    {
+        _ = self.get_element().append_child(html.get_element());
+        self
+    }
+
+    fn children(self, children: &[&dyn Html]) -> Self
+    where
+        Self: Sized,
+    {
+        for child in children.as_ref() {
+            _ = self.get_element().append_child(child.get_element());
+        }
+
         self
     }
 }
@@ -216,9 +252,24 @@ where
     }
 }
 
+pub struct Div(RemoveOnDrop<HtmlDivElement>);
+
+impl Div {
+    fn new(html: HtmlDivElement) -> Self {
+        Self(RemoveOnDrop(html))
+    }
+}
+
+impl Html for Div {
+    fn get_element(&self) -> &Element {
+        self.0.get()
+    }
+}
+
 pub struct Ui {
     document: Document,
     root: Element,
+    ex: Rc<LocalExecutor<'static>>,
 }
 
 impl Ui {
@@ -235,7 +286,6 @@ impl Ui {
 
         html.set_text_content(text.into());
         _ = self.root.append_child(&html);
-
         Button::new(html)
     }
 
@@ -250,9 +300,48 @@ impl Ui {
         html.set_type("text");
         html.set_placeholder(placeholder);
         _ = self.root.append_child(&html);
-
         Input::new(html)
     }
+
+    pub fn make_div(&self) -> Div {
+        let html = self
+            .document
+            .create_element("div")
+            .unwrap_throw()
+            .dyn_into::<HtmlDivElement>()
+            .unwrap_throw();
+
+        _ = self.root.append_child(&html);
+        Div::new(html)
+    }
+
+    pub fn make<C, H>(&self, root: &H, comp: C) -> ComponentHandle
+    where
+        C: Component + 'static,
+        H: Html,
+    {
+        let html = root.get_element().clone();
+        _ = self.root.append_child(&html);
+
+        let ui = Self {
+            document: self.document.clone(),
+            root: html,
+            ex: self.ex.clone(),
+        };
+
+        self.ex.spawn(comp.run_component(ui)).detach();
+        ComponentHandle {}
+    }
+}
+
+impl Html for Ui {
+    fn get_element(&self) -> &Element {
+        &self.root
+    }
+}
+
+pub struct ComponentHandle {
+    // TODO
 }
 
 pub trait Component: Sized {

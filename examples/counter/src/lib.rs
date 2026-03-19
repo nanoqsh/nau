@@ -1,15 +1,29 @@
-use {gloo::console, nau::prelude::*, wasm_bindgen::prelude::*};
+use {
+    futures_lite::stream,
+    nau::{Html, prelude::*},
+    wasm_bindgen::prelude::*,
+};
 
 #[wasm_bindgen(start)]
 pub async fn start() {
-    nau::app(counter, "root").await;
+    nau::app(spawner, "root").await;
+}
+
+async fn spawner(ui: Ui) {
+    let make = ui.make_button("Make").class("button").onclick(|| ());
+
+    loop {
+        make.event().await;
+        ui.make(&ui, counter);
+    }
 }
 
 async fn counter(ui: Ui) {
+    let close = ui.make_button("Close").class("button").onclick(|| ());
+
     enum Event {
         Increment,
         Decrement,
-        Input(String),
     }
 
     let inc = ui
@@ -17,31 +31,24 @@ async fn counter(ui: Ui) {
         .class("button")
         .onclick(|| Event::Increment);
 
-    let input = ui
-        .make_input("Input text..")
-        .class("input")
-        .oninput(Event::Input);
+    let text = ui.make_div().class("text").text("0");
 
     let dec = ui
         .make_button("-1")
         .class("button")
         .onclick(|| Event::Decrement);
 
-    let mut text = String::new();
-    let mut count = 0;
+    let _parent = ui.make_div().children(&[&close, &inc, &text, &dec]);
 
-    (inc, input, dec)
-        .merge()
-        .for_each(|event| match event {
-            Event::Increment => {
-                count += 1;
-                console::log!(&text, count);
+    let mut count = 0;
+    stream::stop_after_future((inc, dec).merge(), close.event())
+        .for_each(|event| {
+            match event {
+                Event::Increment => count += 1,
+                Event::Decrement => count -= 1,
             }
-            Event::Decrement => {
-                count -= 1;
-                console::log!(&text, count);
-            }
-            Event::Input(t) => text = t,
+
+            (&text).text(count.to_string());
         })
         .await;
 }
