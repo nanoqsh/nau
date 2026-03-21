@@ -24,7 +24,7 @@ pub mod prelude {
     };
 }
 
-pub async fn app<C>(comp: C, id: &str)
+pub async fn app<C>(comp: C, id: &str) -> C::Output
 where
     C: Component,
 {
@@ -35,7 +35,7 @@ where
 
     let ex = Rc::default();
     let ui = Ui { document, root, ex };
-    ui.ex.clone().run(comp.run_component(ui)).await;
+    ui.ex.clone().run(comp.run_component(ui)).await
 }
 
 struct RemoveOnDrop<H>(H)
