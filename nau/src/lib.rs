@@ -15,7 +15,7 @@ use {
     wasm_bindgen::prelude::*,
     web_sys::{
         Document, Element, Event, HtmlButtonElement, HtmlDivElement, HtmlInputElement, InputEvent,
-        PointerEvent,
+        MouseEvent, PointerEvent,
     },
 };
 
@@ -190,6 +190,66 @@ impl<A> Button<A> {
         A: 'static,
     {
         self.events.set_callback_with(self.html.get(), "click", f);
+        self
+    }
+
+    pub fn onmouseenter<F>(mut self, f: F) -> Self
+    where
+        F: FnMut() -> A + 'static,
+        A: 'static,
+    {
+        self.events.set_callback(self.html.get(), "mouseenter", f);
+        self
+    }
+
+    pub fn onmouseenter_with<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(MouseEvent) -> A + 'static,
+        A: 'static,
+    {
+        self.events
+            .set_callback_with(self.html.get(), "mouseenter", f);
+
+        self
+    }
+
+    pub fn onmouseleave<F>(mut self, f: F) -> Self
+    where
+        F: FnMut() -> A + 'static,
+        A: 'static,
+    {
+        self.events.set_callback(self.html.get(), "mouseleave", f);
+        self
+    }
+
+    pub fn onmouseleave_with<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(MouseEvent) -> A + 'static,
+        A: 'static,
+    {
+        self.events
+            .set_callback_with(self.html.get(), "mouseleave", f);
+
+        self
+    }
+
+    pub fn onmousemove<F>(mut self, f: F) -> Self
+    where
+        F: FnMut() -> A + 'static,
+        A: 'static,
+    {
+        self.events.set_callback(self.html.get(), "mousemove", f);
+        self
+    }
+
+    pub fn onmousemove_with<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(MouseEvent) -> A + 'static,
+        A: 'static,
+    {
+        self.events
+            .set_callback_with(self.html.get(), "mousemove", f);
+
         self
     }
 

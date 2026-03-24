@@ -28,6 +28,7 @@ features = [
     "HtmlDivElement",
     "HtmlInputElement",
     "InputEvent",
+    "MouseEvent",
     "Node",
     "PointerEvent",
     "Text",
