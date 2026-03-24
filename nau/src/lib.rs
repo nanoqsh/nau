@@ -4,16 +4,19 @@ use {
     async_channel::{Receiver, Sender},
     async_executor::{LocalExecutor, Task},
     futures_concurrency::stream::IntoStream,
-    futures_lite::{Stream, stream},
+    futures_lite::{Stream, StreamExt, stream},
     std::{
+        collections::HashMap,
         future,
-        marker::PhantomData,
         pin::Pin,
         rc::Rc,
         task::{Context, Poll},
     },
     wasm_bindgen::prelude::*,
-    web_sys::{Document, Element, HtmlButtonElement, HtmlDivElement, HtmlInputElement},
+    web_sys::{
+        Document, Element, Event, HtmlButtonElement, HtmlDivElement, HtmlInputElement, InputEvent,
+        PointerEvent,
+    },
 };
 
 pub mod prelude {
@@ -92,45 +95,59 @@ where
     }
 }
 
-pub struct Button<A> {
-    html: RemoveOnDrop<HtmlButtonElement>,
-    onclick: Option<Closure<dyn FnMut()>>,
+struct Events<A> {
+    callbacks: HashMap<&'static str, Closure<dyn FnMut(Event)>>,
     send: Sender<A>,
     recv: Receiver<A>,
-    action: PhantomData<fn(A)>,
 }
 
-impl<A> Button<A> {
-    fn new(html: HtmlButtonElement) -> Self {
+impl<A> Events<A> {
+    fn new() -> Self {
         let (send, recv) = async_channel::unbounded();
         Self {
-            html: RemoveOnDrop(html),
-            onclick: None,
+            callbacks: HashMap::new(),
             send,
             recv,
-            action: PhantomData,
         }
     }
 
-    pub fn onclick<F>(mut self, mut f: F) -> Self
+    fn set(&mut self, html: &Element, ty: &'static str, callback: Closure<dyn FnMut(Event)>) {
+        html.add_event_listener_with_callback(ty, callback.as_ref().unchecked_ref())
+            .unwrap_throw();
+
+        if let Some(prev) = self.callbacks.insert(ty, callback) {
+            html.remove_event_listener_with_callback(ty, prev.as_ref().unchecked_ref())
+                .unwrap_throw();
+        }
+    }
+
+    fn set_callback<F>(&mut self, html: &Element, ty: &'static str, mut f: F)
     where
         F: FnMut() -> A + 'static,
         A: 'static,
     {
-        let onclick = Closure::<dyn FnMut()>::new({
-            let send = self.send.clone();
-            move || _ = send.force_send(f())
-        });
-
-        self.html
-            .get()
-            .set_onclick(Some(onclick.as_ref().unchecked_ref()));
-
-        self.onclick = Some(onclick);
-        self
+        let send = self.send.clone();
+        self.set(html, ty, Closure::new(move |_| _ = send.force_send(f())))
     }
 
-    pub async fn event(&self) -> A {
+    fn set_callback_with<F, E>(&mut self, html: &Element, ty: &'static str, mut f: F)
+    where
+        F: FnMut(E) -> A + 'static,
+        A: 'static,
+        E: JsCast,
+    {
+        let send = self.send.clone();
+        self.set(
+            html,
+            ty,
+            Closure::new(move |event: Event| {
+                let event = event.dyn_into().unwrap_throw();
+                _ = send.force_send(f(event))
+            }),
+        )
+    }
+
+    async fn event(&self) -> A {
         match self.recv.recv().await {
             Ok(action) => action,
             Err(_) => future::pending().await,
@@ -142,6 +159,42 @@ impl<A> Button<A> {
             let action = me.recv.recv().await.ok()?;
             Some((action, me))
         })
+    }
+}
+
+pub struct Button<A> {
+    html: RemoveOnDrop<HtmlButtonElement>,
+    events: Events<A>,
+}
+
+impl<A> Button<A> {
+    fn new(html: HtmlButtonElement) -> Self {
+        Self {
+            html: RemoveOnDrop(html),
+            events: Events::new(),
+        }
+    }
+
+    pub fn onclick<F>(mut self, f: F) -> Self
+    where
+        F: FnMut() -> A + 'static,
+        A: 'static,
+    {
+        self.events.set_callback(self.html.get(), "click", f);
+        self
+    }
+
+    pub fn onclick_with<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(PointerEvent) -> A + 'static,
+        A: 'static,
+    {
+        self.events.set_callback_with(self.html.get(), "click", f);
+        self
+    }
+
+    pub async fn event(&self) -> A {
+        self.events.event().await
     }
 }
 
@@ -159,64 +212,45 @@ where
     type IntoStream = Pin<Box<dyn Stream<Item = Self::Item>>>;
 
     fn into_stream(self) -> Self::IntoStream {
-        Box::pin(self.into_stream())
+        Box::pin(self.events.into_stream().map(move |item| {
+            _ = &self.html; // do not drop html
+            item
+        }))
     }
 }
 
 pub struct Input<A> {
     html: RemoveOnDrop<HtmlInputElement>,
-    oninput: Option<Closure<dyn FnMut()>>,
-    send: Sender<A>,
-    recv: Receiver<A>,
-    action: PhantomData<fn(A)>,
+    events: Events<A>,
 }
 
 impl<A> Input<A> {
     fn new(html: HtmlInputElement) -> Self {
-        let (send, recv) = async_channel::unbounded();
         Self {
             html: RemoveOnDrop(html),
-            oninput: None,
-            send,
-            recv,
-            action: PhantomData,
+            events: Events::new(),
         }
     }
 
-    pub fn oninput<F>(mut self, mut f: F) -> Self
+    pub fn oninput<F>(self, mut f: F) -> Self
     where
         F: FnMut(String) -> A + 'static,
         A: 'static,
     {
-        let oninput = Closure::<dyn FnMut()>::new({
-            let html = self.html.get().clone();
-            let send = self.send.clone();
-            move || {
-                let s = html.value();
-                _ = send.force_send(f(s))
-            }
-        });
+        self.oninput_with(move |event| f(event.data().unwrap_or_default()))
+    }
 
-        self.html
-            .get()
-            .set_oninput(Some(oninput.as_ref().unchecked_ref()));
-
-        self.oninput = Some(oninput);
+    pub fn oninput_with<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(InputEvent) -> A + 'static,
+        A: 'static,
+    {
+        self.events.set_callback_with(self.html.get(), "input", f);
         self
     }
 
     pub async fn event(&self) -> A {
-        match self.recv.recv().await {
-            Ok(action) => action,
-            Err(_) => future::pending().await,
-        }
-    }
-
-    fn into_stream(self) -> impl Stream<Item = A> {
-        stream::unfold(self, async |me| {
-            let action = me.recv.recv().await.ok()?;
-            Some((action, me))
-        })
+        self.events.event().await
     }
 }
 
@@ -234,7 +268,10 @@ where
     type IntoStream = Pin<Box<dyn Stream<Item = Self::Item>>>;
 
     fn into_stream(self) -> Self::IntoStream {
-        Box::pin(self.into_stream())
+        Box::pin(self.events.into_stream().map(move |item| {
+            _ = &self.html; // do not drop html
+            item
+        }))
     }
 }
 

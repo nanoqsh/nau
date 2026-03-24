@@ -27,7 +27,9 @@ features = [
     "HtmlButtonElement",
     "HtmlDivElement",
     "HtmlInputElement",
+    "InputEvent",
     "Node",
+    "PointerEvent",
     "Text",
     "Window",
 ]
