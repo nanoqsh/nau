@@ -1,10 +1,10 @@
-use {nau::prelude::*, std::future, wasm_bindgen::prelude::*};
+use {nau::prelude::*, std::any::Any, wasm_bindgen::prelude::*};
 
 #[wasm_bindgen(start)]
 pub async fn start() {
     nau::app(
         async |ui: Ui| {
-            let _hello = ui.make(hello);
+            ui.make(nau::permanent(hello)).detach();
             ui.make(clicker).await
         },
         "root",
@@ -12,9 +12,8 @@ pub async fn start() {
     .await;
 }
 
-async fn hello(ui: Ui) {
-    ui.text("hello!"); // set text in root element
-    future::pending().await // no IO
+fn hello(ui: Ui) -> impl Any {
+    ui.make_div().text("hello!")
 }
 
 async fn clicker(ui: Ui) {

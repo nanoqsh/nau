@@ -434,11 +434,14 @@ impl<R> Future for ComponentHandle<R> {
     }
 }
 
+/// A trait for components.
 pub trait Component: Sized {
     type Output;
 
+    /// Runs the component with passed [ui](crate::Ui).
     async fn run_component(self, ui: Ui) -> Self::Output;
 
+    /// Sets parent to the component.
     fn with_parent<H>(self, parent: H) -> WithParent<H, Self> {
         WithParent { parent, comp: self }
     }
@@ -471,4 +474,28 @@ where
         ui.root = self.parent.get_element().clone();
         self.comp.run_component(ui).await
     }
+}
+
+/// Creates permanent component from a function.
+pub fn permanent<C, R>(comp: C) -> impl Component<Output = ()>
+where
+    C: FnOnce(Ui) -> R,
+{
+    struct Permanent<C> {
+        comp: C,
+    }
+
+    impl<C, R> Component for Permanent<C>
+    where
+        C: FnOnce(Ui) -> R,
+    {
+        type Output = ();
+
+        async fn run_component(self, ui: Ui) -> Self::Output {
+            let _elements = (self.comp)(ui);
+            future::pending().await
+        }
+    }
+
+    Permanent { comp }
 }
